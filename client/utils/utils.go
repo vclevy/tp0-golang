@@ -21,18 +21,22 @@ type Paquete struct {
 }
 
 func IniciarConfiguracion(filePath string) *globals.Config {
-	var config *globals.Config
+	config := &globals.Config{} // ✅ Inicializamos correctamente la estructura
+
 	configFile, err := os.Open(filePath)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal(err.Error()) // Esto detendrá el programa si falla
 	}
 	defer configFile.Close()
 
 	jsonParser := json.NewDecoder(configFile)
-	jsonParser.Decode(&config)
+	if err := jsonParser.Decode(config); err != nil { // Pasamos config sin el &
+		log.Fatal("Error al decodificar config.json:", err)
+	}
 
 	return config
 }
+
 
 func LeerConsola() {
 	// Leer de la consola
@@ -43,11 +47,32 @@ func LeerConsola() {
 }
 
 func GenerarYEnviarPaquete() {
-	paquete := Paquete{}
-	// Leemos y cargamos el paquete
+	// Crear un mensaje con los datos cargados de la configuración
+	mensaje := Mensaje{
+		Mensaje: globals.ClientConfig.Mensaje, // El mensaje se toma de la configuración
+	}
 
-	log.Printf("paqute a enviar: %+v", paquete)
-	// Enviamos el paqute
+	// Mostrar el paquete en los logs
+	log.Printf("Paquete a enviar: %+v", mensaje)
+
+	// Codificar el mensaje en JSON
+	body, err := json.Marshal(mensaje)
+	if err != nil {
+		log.Printf("Error al codificar el mensaje: %s", err.Error())
+		return
+	}
+
+	// Enviar el mensaje al servidor
+	url := fmt.Sprintf("http://%s:%d/mensaje", globals.ClientConfig.Ip, globals.ClientConfig.Puerto)
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		log.Printf("Error enviando el mensaje a %s:%d: %s", globals.ClientConfig.Ip, globals.ClientConfig.Puerto, err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	// Registrar la respuesta del servidor
+	log.Printf("Respuesta del servidor: %s", resp.Status)
 }
 
 func EnviarMensaje(ip string, puerto int, mensajeTxt string) {

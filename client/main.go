@@ -1,35 +1,64 @@
 package main
 
 import (
+	"bufio"
 	"client/globals"
 	"client/utils"
-	"log" // hace falta añadir
+	"fmt"
+	"log"
+	"os"
+	"time"
+	"net"
 )
+
+// VerificarServidor intenta conectarse al servidor y devuelve true si está disponible.
+func VerificarServidor(ip string, puerto int) bool {
+	address := fmt.Sprintf("%s:%d", ip, puerto)
+	conn, err := net.DialTimeout("tcp", address, 2*time.Second) // Intentamos conectar con timeout de 2s
+	if err != nil {
+		return false // El servidor no está disponible
+	}
+	conn.Close() // Cerramos la conexión
+	return true
+}
 
 func main() {
 	utils.ConfigurarLogger()
-
-	// loggear "Hola soy un log" usando la biblioteca log
 	log.Println("Soy un Log")
 
 	globals.ClientConfig = utils.IniciarConfiguracion("config.json")
-	// validar que la config este cargada correctamente
 
 	if globals.ClientConfig == nil {
 		log.Fatalf("No se pudo cargar la configuración")
 	}
 
-	// loggeamos el valor de la config
-	log.Println(globals.ClientConfig.Mensaje)
-	// ADVERTENCIA: Antes de continuar, tenemos que asegurarnos que el servidor esté corriendo para poder conectarnos a él
+	if !VerificarServidor(globals.ClientConfig.Ip, globals.ClientConfig.Puerto) {
+		log.Fatalf("Error: El servidor no está disponible en %s:%d", globals.ClientConfig.Ip, globals.ClientConfig.Puerto)
+	}
 
-	// enviar un mensaje al servidor con el valor de la config
-	utils.EnviarMensaje(globals.ClientConfig.Ip, globals.ClientConfig.Puerto, globals.ClientConfig.Mensaje)
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Println("Escribe un mensaje para enviar al servidor (presiona Enter sin escribir nada para salir):")
 
-	// leer de la consola el mensaje
-	utils.LeerConsola()
+	for {
+		fmt.Print("> ")
+		scanner.Scan()
+		mensaje := scanner.Text()
 
-	// generamos un paquete y lo enviamos al servidor
+		// Si el usuario presiona Enter sin texto, salimos del bucle
+		if mensaje == "" {
+			log.Println("Finalizando envío de mensajes...")
+			break
+		}
 
-	utils.GenerarYEnviarPaquete()
+		// Actualizamos la configuración global con el nuevo mensaje
+		globals.ClientConfig.Mensaje = mensaje
+
+		// Enviar el mensaje al servidor con el valor de la configuración actual
+		utils.EnviarMensaje(globals.ClientConfig.Ip, globals.ClientConfig.Puerto, globals.ClientConfig.Mensaje)
+
+		// Generamos y enviamos el paquete con el mensaje
+		utils.GenerarYEnviarPaquete()
+	}
+
+	log.Println("Programa finalizado.")
 }
