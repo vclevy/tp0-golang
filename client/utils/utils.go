@@ -45,7 +45,7 @@ func LeerConsola() Paquete { //LeerConsola no tiene parametros por eso vacio los
 		text, _ := reader.ReadString('\n')
 		log.Println(text)
 
-		if text == "\n" { // Si el usuario presiona Enter sin escribir nada, termina
+		if text == "\r\n" { // Si el usuario presiona Enter sin escribir nada, termina. IMPORTANTE: PARA PROBAR EN WINDOWS, SACAR \r !!!
 			break
 		}
 
